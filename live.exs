@@ -16,8 +16,17 @@ defmodule Example.ErrorView do
   def render(template, _), do: Phoenix.Controller.status_message_from_template(template)
 end
 
+defmodule Example.Presence do
+  use Phoenix.Presence,
+    otp_app: :sample,
+    pubsub_server: Example.PubSub
+
+end
+
 defmodule Example.HomeLive do
   use Phoenix.LiveView, layout: {__MODULE__, :live}
+
+  alias Example.Presence
 
   def mount(_params, _session, socket) do
     {:ok, assign(socket, :count, 0)}
@@ -43,9 +52,22 @@ defmodule Example.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <%= @count %>
-    <button phx-click="inc">+</button>
-    <button phx-click="dec">-</button>
+      <div>
+        <%= inspect(@streams.searched_notes) %>
+        <ul phx-update="stream" id="searched_notes">
+          <li
+            :for={{dom_id, note} <- @streams.searched_notes}
+            class="py-2 sm:pb-2 mt-2 flex flex-col border border-t-1 border-r-0 border-l-0 border-b-0 "
+            id={dom_id}
+          >
+            <div class="flex flex-col mt-2 ml-14">
+              <div class="truncate  text-base  text-gray-900 dark:text-white">
+                <%= Phoenix.HTML.raw(note.text) %>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
     """
   end
 
