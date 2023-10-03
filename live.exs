@@ -20,16 +20,81 @@ defmodule Example.Presence do
   use Phoenix.Presence,
     otp_app: :sample,
     pubsub_server: Example.PubSub
-
 end
 
 defmodule Example.HomeLive do
   use Phoenix.LiveView, layout: {__MODULE__, :live}
-
+  @presence "sample:presence"
   alias Example.Presence
 
-  def mount(_params, _session, socket) do
-    {:ok, assign(socket, :count, 0)}
+  def mount(params, _session, socket) do
+    current_user = %{
+      id: params["name"],
+      full_name: params["name"]
+    }
+    {:ok, _} =
+      Presence.track(self(), @presence, current_user.id, %{
+        name: current_user.full_name,
+        joined_at: :os.system_time(:seconds)
+      })
+      Phoenix.PubSub.subscribe(Example.PubSub, @presence)
+
+    {:ok,
+     socket
+     |> assign(:online_users_map, %{})
+     |> assign_search()
+     |> handle_joins(Presence.list(@presence))}
+  end
+  defp assign_search(socket) do
+    searched_notes =
+      [
+        %{
+          id: 1,
+          text: "test",
+          user_online?: true,
+          author: %{id: 1}
+        }
+      ]
+
+    |> Enum.map(fn x ->
+      Map.put(x, :user_online?, Map.has_key?(socket.assigns.online_users_map, x.author.id))
+    end)
+    |> IO.inspect(label: "searched_notes ################")
+    socket
+    |> stream(:searched_notes, searched_notes, reset: true)
+  end
+
+
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff", payload: diff}, socket) do
+    IO.inspect(diff, label: "entered handle diff ################")
+    {
+      :noreply,
+      socket
+      |> handle_leaves(diff.leaves)
+      |> handle_joins(diff.joins)
+    }
+  end
+
+  defp handle_joins(socket, joins) do
+    # IO.inspect(socket, label: "entered socket################")
+    IO.inspect(joins, label: "entered handle joins################")
+
+    Enum.reduce(joins, socket, fn {user, %{metas: [meta | _]}}, socket ->
+      socket
+      # |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
+      |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
+      |> IO.inspect(label: "socket################")
+      |> assign_search()
+    end)
+  end
+
+  defp handle_leaves(socket, leaves) do
+    Enum.reduce(leaves, socket, fn {user, _}, socket ->
+      socket
+      |> assign(:online_users_map, Map.delete(socket.assigns.online_users_map, user))
+      |> assign_search()
+    end)
   end
 
   defp phx_vsn, do: Application.spec(:phoenix, :vsn)
@@ -39,9 +104,12 @@ defmodule Example.HomeLive do
     ~H"""
     <script src={"https://cdn.jsdelivr.net/npm/phoenix@#{phx_vsn()}/priv/static/phoenix.min.js"}></script>
     <script src={"https://cdn.jsdelivr.net/npm/phoenix_live_view@#{lv_vsn()}/priv/static/phoenix_live_view.min.js"}></script>
+
     <script>
       let liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket)
       liveSocket.connect()
+
+
     </script>
     <style>
       * { font-size: 1.1em; }
@@ -71,14 +139,26 @@ defmodule Example.HomeLive do
     """
   end
 
-  def handle_event("inc", _params, socket) do
-    {:noreply, assign(socket, :count, socket.assigns.count + 1)}
-  end
-
-  def handle_event("dec", _params, socket) do
-    {:noreply, assign(socket, :count, socket.assigns.count - 1)}
-  end
 end
+# defmodule Example.RoomChannel do
+#   use Phoenix.Channel
+#   alias Example.Presence
+
+#   def join("room:lobby", %{"name" => name}, socket) do
+#     send(self(), :after_join)
+#     {:ok, assign(socket, :name, name)}
+#   end
+
+#   def handle_info(:after_join, socket) do
+#     {:ok, _} =
+#       Presence.track(socket, socket.assigns.name, %{
+#         online_at: inspect(System.system_time(:second))
+#       })
+
+#     push(socket, "presence_state", Presence.list(socket))
+#     {:noreply, socket}
+#   end
+# end
 
 defmodule Example.Router do
   use Phoenix.Router
@@ -91,7 +171,7 @@ defmodule Example.Router do
   scope "/", Example do
     pipe_through(:browser)
 
-    live("/", HomeLive, :index)
+    live("/:name", HomeLive, :index)
   end
 end
 
@@ -101,5 +181,5 @@ defmodule Example.Endpoint do
   plug(Example.Router)
 end
 
-{:ok, _} = Supervisor.start_link([Example.Endpoint], strategy: :one_for_one)
+{:ok, _} = Supervisor.start_link([Example.Endpoint,  {Phoenix.PubSub, name: Example.PubSub}, Example.Presence], strategy: :one_for_one)
 Process.sleep(:infinity)
