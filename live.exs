@@ -32,6 +32,7 @@ defmodule Example.HomeLive do
       id: params["name"],
       full_name: params["name"]
     }
+
     {:ok, _} =
       Presence.track(self(), @presence, current_user.id, %{
         name: current_user.full_name,
@@ -45,6 +46,7 @@ defmodule Example.HomeLive do
      |> assign_search()
      |> handle_joins(Presence.list(@presence))}
   end
+
   defp assign_search(socket) do
     searched_notes =
       [
