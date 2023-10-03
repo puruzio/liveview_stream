@@ -67,7 +67,6 @@ defmodule Example.HomeLive do
 
   @impl true
   def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff", payload: diff}, socket) do
-    IO.inspect(diff, label: "entered handle diff ################")
     {
       :noreply,
       socket
@@ -77,15 +76,13 @@ defmodule Example.HomeLive do
   end
 
   defp handle_joins(socket, joins) do
-    # IO.inspect(socket, label: "entered socket################")
-    IO.inspect(joins, label: "entered handle joins################")
+    IO.inspect(joins, label: "entered handle join s################")
 
     Enum.reduce(joins, socket, fn {user, %{metas: [meta | _]}}, socket ->
       socket
       # |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
       |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
-      |> IO.inspect(label: "socket################")
-      |> assign_search()
+      # |> assign_search()
     end)
   end
 
@@ -108,8 +105,6 @@ defmodule Example.HomeLive do
     <script>
       let liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket)
       liveSocket.connect()
-
-
     </script>
     <style>
       * { font-size: 1.1em; }
@@ -140,25 +135,6 @@ defmodule Example.HomeLive do
   end
 
 end
-# defmodule Example.RoomChannel do
-#   use Phoenix.Channel
-#   alias Example.Presence
-
-#   def join("room:lobby", %{"name" => name}, socket) do
-#     send(self(), :after_join)
-#     {:ok, assign(socket, :name, name)}
-#   end
-
-#   def handle_info(:after_join, socket) do
-#     {:ok, _} =
-#       Presence.track(socket, socket.assigns.name, %{
-#         online_at: inspect(System.system_time(:second))
-#       })
-
-#     push(socket, "presence_state", Presence.list(socket))
-#     {:noreply, socket}
-#   end
-# end
 
 defmodule Example.Router do
   use Phoenix.Router
