@@ -22,12 +22,100 @@ defmodule Example.Presence do
     pubsub_server: Example.PubSub
 end
 
+defmodule ExampleWeb do
+
+  def static_paths, do: ~w(assets fonts images uploads favicon.ico robots.txt)
+
+  def router do
+    quote do
+      # for phoenix 1.7 compatibility
+      use Phoenix.Router, helpers: true
+
+      # Import common connection and controller functions to use in pipelines
+      import Plug.Conn
+      import Phoenix.Controller
+      import Phoenix.LiveView.Router
+    end
+  end
+
+  # def channel do
+  #   quote do
+  #     use Phoenix.Channel
+  #   end
+  # end
+
+  # def controller do
+  #   quote do
+  #     use Phoenix.Controller,
+  #       namespace: ExampleWeb,
+  #       formats: [:html, :json]
+
+
+  #     import Plug.Conn
+
+
+  #     unquote(verified_routes())
+  #   end
+  # end
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      # Include general helpers for rendering HTML
+      unquote(html_helpers())
+    end
+  end
+
+  def html_helpers do
+    quote do
+      # HTML escaping functionality
+      import Phoenix.HTML
+
+      # Shortcut for generating JS commands
+      alias Phoenix.LiveView.JS
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+    end
+  end
+
+  def live_view do
+    quote do
+      use Phoenix.LiveView
+
+      unquote(html_helpers())
+    end
+  end
+  def verified_routes do
+    quote do
+      use Phoenix.VerifiedRoutes,
+        endpoint: Example.Endpoint,
+        router: Example.Router,
+        statics: ExampleWeb.static_paths()
+    end
+  end
+  @doc """
+  When used, dispatch to the appropriate controller/view/etc.
+  """
+  defmacro __using__(which) when is_atom(which) do
+    apply(__MODULE__, which, [])
+  end
+end
+
 defmodule Example.HomeLive do
-  use Phoenix.LiveView, layout: {__MODULE__, :live}
+  # use Phoenix.LiveView, layout: {__MODULE__, :live}
+  use ExampleWeb, :live_view
   @presence "sample:presence"
   alias Example.Presence
 
   def mount(params, _session, socket) do
+    if connected?(socket) do IO.puts("Connected #####") end
+
     current_user = %{
       id: params["name"],
       full_name: params["name"]
