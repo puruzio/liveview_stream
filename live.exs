@@ -84,7 +84,8 @@ defmodule Example.HomeLive do
       socket
       # |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
       |> assign(:online_users_map, Map.put(socket.assigns.online_users_map, user, meta))
-      # |> assign_search()
+      # commenting this assign_search out will help avoid the issue.
+      |> assign_search()
     end)
   end
 
